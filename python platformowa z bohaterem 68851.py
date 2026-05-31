@@ -1,0 +1,136 @@
+import pygame
+import sys
+
+
+pygame.init()
+screen = pygame.display.set_mode((800, 600))
+pygame.display.set_caption("Platformówka – Maksymalnie Prosta")
+clock = pygame.time.Clock()
+font = pygame.font.SysFont(None, 40)
+
+
+class Platform:
+    def __init__(self, x, y, w, h):
+        self.rect = pygame.Rect(x, y, w, h)
+
+class Enemy:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, 30, 30)
+
+class Item:
+    def __init__(self, x, y, is_special=False):
+        self.rect = pygame.Rect(x, y, 20, 20)
+        self.is_special = is_special
+        self.value = 50 if is_special else 10
+        self.color = (180, 50, 255) if is_special else (255, 215, 0)
+
+class Goal:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, 40, 60)
+
+class Hero:
+    def __init__(self, x, y):
+        self.rect = pygame.Rect(x, y, 40, 40)
+        self.vel_y = 0
+        self.on_ground = False
+
+    def move(self, keys, platforms):
+        
+        dx = 0
+        if keys[pygame.K_LEFT]: dx = -6
+        if keys[pygame.K_RIGHT]: dx = 6
+        self.rect.x += dx
+        
+        for p in platforms:
+            if self.rect.colliderect(p.rect):
+                if dx > 0: self.rect.right = p.rect.left
+                if dx < 0: self.rect.left = p.rect.right
+
+        self.vel_y += 1 
+        if keys[pygame.K_UP] and self.on_ground:
+            self.vel_y = -20
+        
+        self.rect.y += self.vel_y
+        self.on_ground = False
+        
+        for p in platforms:
+            if self.rect.colliderect(p.rect):
+                if self.vel_y > 0: 
+                    self.rect.bottom = p.rect.top
+                    self.on_ground = True
+                if self.vel_y < 0: 
+                    self.rect.top = p.rect.bottom
+                self.vel_y = 0
+
+class Level:
+    def __init__(self, level_num):
+        
+        if level_num == 1:
+            self.platforms = [Platform(0, 550, 800, 50), Platform(100, 450, 150, 20), Platform(300, 350, 150, 20)]
+            self.enemies = [Enemy(300, 520)]
+            self.items = [Item(150, 430), Item(350, 330, is_special=True)]
+            self.goal = Goal(400, 290)
+        else:
+            self.platforms = [Platform(0, 550, 300, 50), Platform(500, 550, 300, 50), Platform(350, 450, 100, 20)]
+            self.enemies = [Enemy(600, 520)]
+            self.items = [Item(390, 430), Item(600, 520, is_special=True)]
+            self.goal = Goal(700, 490)
+
+def main():
+    level_num = 1
+    level = Level(level_num)
+    hero = Hero(50, 500)
+    score = 0
+    
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                sys.exit()
+
+        keys = pygame.key.get_pressed()
+        hero.move(keys, level.platforms)
+
+       
+        for item in level.items[:]: 
+            if hero.rect.colliderect(item.rect):
+                score += item.value
+                level.items.remove(item) 
+        for enemy in level.enemies[:]:
+            if hero.rect.colliderect(enemy.rect):
+                if hero.vel_y > 0 and hero.rect.bottom < enemy.rect.centery + 15:
+                    level.enemies.remove(enemy)
+                    hero.vel_y = -12
+                    score += 20
+                else:
+                    hero.rect.topleft = (50, 500)
+                    score = 0
+
+        if hero.rect.y > 600:
+            hero.rect.topleft = (50, 500)
+            score = 0
+
+   
+        if hero.rect.colliderect(level.goal.rect):
+            level_num += 1
+            if level_num > 2: level_num = 1 
+            level = Level(level_num)
+            hero.rect.topleft = (50, 500)
+
+        screen.fill((30, 30, 40)) 
+        pygame.draw.rect(screen, (50, 150, 255), hero.rect) 
+        pygame.draw.rect(screen, (255, 255, 255), level.goal.rect) 
+        
+        
+        for p in level.platforms: pygame.draw.rect(screen, (100, 200, 100), p.rect)
+        for e in level.enemies: pygame.draw.rect(screen, (255, 50, 50), e.rect)
+        for i in level.items: pygame.draw.rect(screen, i.color, i.rect)
+
+        
+        tekst = font.render(f"Poziom: {level_num}  Punkty: {score}", True, (255, 255, 255))
+        screen.blit(tekst, (10, 10))
+
+        pygame.display.flip()
+        clock.tick(60)
+
+if __name__ == "__main__":
+    main()
